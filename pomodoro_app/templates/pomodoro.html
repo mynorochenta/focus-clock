@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pomodoro Timer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            text-align: center;
+            background-color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        #timer {
+            font-size: 3rem;
+            margin: 1rem 0;
+        }
+        button {
+            font-size: 1rem;
+            padding: 0.5rem 1rem;
+            margin: 0.5rem;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Pomodoro Timer</h1>
+        <div id="timer">25:00</div>
+        <button id="startBtn">Iniciar</button>
+        <button id="resetBtn">Reiniciar</button>
+        <h2>Sesiones anteriores</h2>
+        <ul id="sessionList"></ul>
+    </div>
+
+    <script>
+        let timer;
+        let timeLeft = 25 * 60;
+        const timerDisplay = document.getElementById('timer');
+        const startBtn = document.getElementById('startBtn');
+        const resetBtn = document.getElementById('resetBtn');
+
+        function updateDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function startTimer() {
+            timer = setInterval(() => {
+                timeLeft--;
+                updateDisplay();
+                if (timeLeft === 0) {
+                    clearInterval(timer);
+                    alert('¡Tiempo terminado!');
+                    saveSession(25, true);
+                }
+            }, 1000);
+            startBtn.textContent = 'Pausar';
+            startBtn.onclick = pauseTimer;
+        }
+
+        function pauseTimer() {
+            clearInterval(timer);
+            startBtn.textContent = 'Reanudar';
+            startBtn.onclick = startTimer;
+        }
+
+        function resetTimer() {
+            clearInterval(timer);
+            timeLeft = 25 * 60;
+            updateDisplay();
+            startBtn.textContent = 'Iniciar';
+            startBtn.onclick = startTimer;
+        }
+
+        function saveSession(duration, completed) {
+            fetch('/save_session/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    duration: duration,
+                    completed: completed
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    console.log('Sesión guardada con éxito');
+                    updateSessionList();
+                } else {
+                    console.error('Error al guardar la sesión');
+                }
+            });
+        }
+
+        function updateSessionList() {
+            fetch('/get_sessions/')
+                .then(response => response.json())
+                .then(data => {
+                    const sessionList = document.getElementById('sessionList');
+                    sessionList.innerHTML = '';
+                    data.sessions.forEach(session => {
+                        const li = document.createElement('li');
+                        li.textContent = `${session.start_time} - ${session.completed ? 'Completada' : 'No completada'}`;
+                        sessionList.appendChild(li);
+                    });
+                });
+        }
+
+        startBtn.onclick = startTimer;
+        resetBtn.onclick = resetTimer;
+
+        updateSessionList();
+    </script>
+</body>
+</html>
